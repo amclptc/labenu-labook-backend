@@ -1,9 +1,9 @@
-import { knex } from "knex"
+import { knex } from "knex";
 
 export const db = knex({
     client: "sqlite3",
     connection: {
-        filename: "./src/database/teste.db",
+        filename: "./src/database/labook.db",
     },
     useNullAsDefault: true,
     pool: {
@@ -13,4 +13,4 @@ export const db = knex({
             conn.run("PRAGMA foreign_keys = ON", cb)
         }
     }
-})
+});
