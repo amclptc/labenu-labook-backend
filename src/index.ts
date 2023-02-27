@@ -17,17 +17,25 @@ app.listen(3003, () => {
 
 
 //endpoint de teste:
-app.get('/ping', async (req: Request, res: Response) => {
+app.get("/ping", async (req: Request, res: Response) => {
     try {
-        res.send('Pong!')
+        res.status(200).send({ message: "Pong!" })
+    } catch (error) {
+        console.log(error)
 
-    } catch (error: any) {
-        console.log(error);
-        res.status(400).send(error.message)
+        if (req.statusCode === 200) {
+            res.status(500)
+        }
+
+        if (error instanceof Error) {
+            res.send(error.message)
+        } else {
+            res.send("Erro inesperado")
+        }
     }
-  });
+})
 
-//endpoint signup:
+// endpoint signup:
 app.post('/users/signup', async (req: Request, res: Response) => {
     try {
         const name = req.body.name as string;
@@ -89,9 +97,15 @@ app.post('/users/login', async (req:Request, res:Response) => {
 //endpoint get posts:
 app.get('/posts', async (req:Request, res:Response) => {
     try {
-        const result = await db("posts");
+        const q = req.query.q as string | undefined;
 
-        res.status(200).send(result);
+        if(q === undefined){
+            const result = await db("posts");
+            res.status(200).send(result);
+        }else{
+            const result = await db("posts").where("id", "LIKE", `%${q}%`);
+            res.status(200).send(result);
+        }
 
     } catch (error: any) {
 		console.log(error)
@@ -99,48 +113,35 @@ app.get('/posts', async (req:Request, res:Response) => {
     }
 });
 
-// endpoint create post:
+//endpoint create post:
 app.post('/posts', async (req:Request, res:Response) => {
     try {
-        // const auth = req.headers.authorization as string;
+        const { id, content, likes, dislikes, createdAt, updatedAt, creatorId, creatorName } = req.body
 
-        const id = req.body.id as string;
-        const content = req.body.content as string;
-        const likes = req.body.likes as number;
-        const dislikes = req.body.dislikes as number;
-        const createdAt = req.body.createdAt as string;
-        const updatedAt = req.body.updatedAt as string;
-        const creatorId = req.body.creator.id as string;
-        const creatorName = req.body.creator.name as string;
+        const [postIdExists] = await db("posts").where({id});
 
-        const idExists = await db("posts").where({id: id});
-
-        if(idExists){
-			res.status(404)
-			throw new Error("Essa ID pertence a outro post!");
-        };
-
-        if(!id || !content){
-            res.status(404)
-			throw new Error("Post incompleto!");
-        };
-
-        const newPost = {
-            id: id,
-            content: content,
-            likes: likes,
-            dislikes: dislikes,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            creator = {
-                id: creatorId,
-                name: creatorName
-            }
+        if(postIdExists){
+            res.status(400);
+            throw new Error("id já existe!");
         }
 
-        await db("users").insert(newPost);
+        const newPost: TPost = {
+            id,
+            content,
+            likes,
+            dislikes,
+            createdAt,
+            updatedAt,
+            creatorId,
+            creatorName
+        }
+
+        await db("posts").insert(newPost);
         
-        res.status(200).send({message: "Post criado com sucesso!"});
+        res.status(200).send({
+            message: "Post criado com sucesso!",
+            post: newPost
+        });
         
     } catch (error:any) {
         console.log(error);
